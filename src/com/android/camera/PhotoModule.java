@@ -481,6 +481,10 @@ public class PhotoModule
 
         mActivity.getLayoutInflater().inflate(R.layout.photo_module, (ViewGroup) mRootView);
 
+        mPreferences.setLocalId(mActivity, mCameraId);
+        CameraSettings.upgradeLocalPreferences(mPreferences.getLocal());
+        mActivity.setStoragePath(mPreferences);
+
         // Surface texture is from camera screen nail and startPreview needs it.
         // This must be done before startPreview.
         mIsImageCaptureIntent = isImageCaptureIntent();
@@ -490,9 +494,6 @@ public class PhotoModule
             mActivity.createCameraScreenNail(!mIsImageCaptureIntent);
         }
 
-        mPreferences.setLocalId(mActivity, mCameraId);
-        CameraSettings.upgradeLocalPreferences(mPreferences.getLocal());
-        mActivity.setStoragePath(mPreferences);
         // we need to reset exposure for the preview
         resetExposureCompensation();
         // Starting the preview needs preferences, camera screen nail, and
@@ -2534,7 +2535,7 @@ public class PhotoModule
         String hdr = mPreferences.getString(CameraSettings.KEY_CAMERA_HDR,
                 mActivity.getString(R.string.pref_camera_hdr_default));
         if (mActivity.getString(R.string.setting_on_value).equals(hdr)) {
-            if (!Util.useSoftwareHDR())
+            if (Util.isCameraHdrSupported(mParameters) && !Util.useSoftwareHDR())
                 mSceneMode = Util.SCENE_MODE_HDR;
             else {
                 mSceneMode = Parameters.SCENE_MODE_AUTO;
@@ -2566,6 +2567,9 @@ public class PhotoModule
         }
 
         if (Util.enableZSL()) {
+            if (Util.sendMagicSamsungZSLCommand()) {
+                mCameraDevice.sendMagicSamsungZSLCommand();
+            }
             // Switch on ZSL mode
             mParameters.set("camera-mode", "1");
         } else {
