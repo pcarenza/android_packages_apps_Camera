@@ -33,6 +33,8 @@
     <string name="pref_camera_picturesize_entry_2_5mp">2.5M pixels</string>
     <!-- Settings screen, dialog choice for 2.1 megapixels picture size [CHAR LIMIT=15] -->
     <string name="pref_camera_picturesize_entry_2_1mp">2.1M pixels</string>
+    <!-- Settings screen, dialog choice for 1.9 megapixels picture size [CHAR LIMIT=15] -->
+    <string name="pref_camera_picturesize_entry_1_9mp">1.9M pixels</string>
     <!-- Settings screen, dialog choice for 1.5 megapixels picture size [CHAR LIMIT=15] -->
     <string name="pref_camera_picturesize_entry_1_5mp">1.5M pixels</string>
     <!-- Settings screen, dialog choice for XGA picture size [CHAR LIMIT=15] -->
@@ -176,7 +178,7 @@
     <string name="pref_camera_timer_entry_50">50s</string>
     <string name="pref_camera_timer_entry_60">60s</string>
 
-    <string name="voice_hint">Snap a photo from a distance by saying a trigger word: You can use \'Xenon\', \'Click\', \'Snap\', and of course \'Cheese!\'</string>
+    <string name="voice_hint">Snap a photo from a distance by saying a trigger word: You can use \'Cid\', \'Whisky\', and of course \'Cheese!\'</string>
 
     <!-- Persistent remote shutter -->
     <string name="pref_nohands_persistent_title">Persistent handsfree</string>
