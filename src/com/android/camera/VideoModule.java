@@ -32,6 +32,10 @@ import android.hardware.Camera.CameraInfo;
 import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PictureCallback;
 import android.hardware.Camera.Size;
+import android.hardware.Sensor;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorEvent;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.media.CamcorderProfile;
 import android.media.CameraProfile;
@@ -89,7 +93,8 @@ public class VideoModule implements CameraModule,
     MediaRecorder.OnErrorListener,
     MediaRecorder.OnInfoListener,
     EffectsRecorder.EffectsListener,
-    PieRenderer.PieListener {
+    PieRenderer.PieListener,
+    SensorEventListener {
 
     private static final String TAG = "CAM_VideoModule";
 
@@ -155,6 +160,11 @@ public class VideoModule implements CameraModule,
 
     private boolean mIsVideoCaptureIntent;
     private boolean mQuickCapture;
+
+    private SensorManager mSensorManager;
+    private boolean mSensorIsRegistered = false;
+
+    private long mLastVid = 0;
 
     private MediaRecorder mMediaRecorder;
     private EffectsRecorder mEffectsRecorder;
@@ -1935,6 +1945,37 @@ public class VideoModule implements CameraModule,
                 UPDATE_RECORD_TIME, actualNextUpdateDelay);
     }
 
+    private void updateCustomSettings() {
+        mActivity.initPowerShutter(mPreferences);
+        mActivity.initStoragePrefs(mPreferences);
+        mActivity.initSmartCapture(mPreferences);
+        mActivity.initTrueView(mPreferences);
+        if (mActivity.mSmartCapture) {
+            startSmartCapture();
+        } else {
+            stopSmartCapture();
+        }
+    }
+
+    private void startSmartCapture() {
+        if (!mSensorIsRegistered) {
+            mSensorIsRegistered = true;
+            mSensorManager = mActivity.getSensorManager();
+            mSensorManager.registerListener(this,
+                    mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY),
+                    SensorManager.SENSOR_DELAY_UI);
+        }
+    }
+
+    private void stopSmartCapture() {
+        if (mSensorManager != null && mSensorIsRegistered) {
+            mSensorIsRegistered = false;
+            mSensorManager.unregisterListener(this,
+                    mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY));
+            mSensorManager = null;
+        }
+    }
+
     private static boolean isSupported(String value, List<String> supported) {
         return supported == null ? false : supported.indexOf(value) >= 0;
     }
@@ -2066,8 +2107,7 @@ public class VideoModule implements CameraModule,
 
         if (oldWidth != width || oldHeight != height) {
             screenNail.setSize(width, height);
-            screenNail.enableAspectRatioClamping();
-            mActivity.notifyScreenNailChanged();
+            mActivity.initTrueView(mPreferences);
         }
 
         if (screenNail.getSurfaceTexture() == null) {
@@ -2168,6 +2208,23 @@ public class VideoModule implements CameraModule,
             Log.w(TAG, ex);
         }
         throw new RuntimeException("Error during recording!", exception);
+    }
+
+@Override
+    public void onSensorChanged(SensorEvent event) {
+        // Minimum 2 second timrout for start/stop record
+        // else it will crash the thread on low end devices
+        if (((SystemClock.uptimeMillis() - mLastVid) > 2000) && mActivity.mShowCameraAppView) {
+            int currentProx = (int) event.values[0];
+            if (currentProx == 0) {
+                onShutterButtonClick();
+                mLastVid = SystemClock.uptimeMillis();
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
     }
 
     private void initializeControlByIntent() {
@@ -2936,6 +2993,7 @@ public class VideoModule implements CameraModule,
         }
         setShowMenu(fullScreen);
         if (mPopup != null) {
+            mActivity.recreateScreenNail();
             ((FrameLayout) mRootView).removeView(mPopup);
             mPopup = null;
         }
