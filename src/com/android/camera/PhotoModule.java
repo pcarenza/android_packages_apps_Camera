@@ -34,6 +34,10 @@ import android.hardware.Camera.FaceDetectionListener;
 import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PictureCallback;
 import android.hardware.Camera.Size;
+import android.hardware.Sensor;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorEvent;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.media.CameraProfile;
 import android.net.Uri;
@@ -94,7 +98,8 @@ public class PhotoModule
     PreviewFrameLayout.OnSizeChangedListener,
     ShutterButton.OnShutterButtonListener,
     SurfaceHolder.Callback,
-    PieRenderer.PieListener {
+    PieRenderer.PieListener,
+    SensorEventListener {
 
     private static final String TAG = "CAM_PhotoModule";
 
@@ -256,6 +261,9 @@ public class PhotoModule
     private static final int SWITCHING_CAMERA = 4;
     private int mCameraState = PREVIEW_STOPPED;
     private boolean mSnapshotOnIdle = false;
+
+    private SensorManager mSensorManager;
+    private boolean mSensorIsRegistered = false;
 
     private ContentResolver mContentResolver;
 
@@ -974,6 +982,37 @@ public class PhotoModule
         updateNoHandsIndicator();
     }
 
+    private void updateCustomSettings(boolean forceStopSmartCapture) {
+        mActivity.initPowerShutter(mPreferences);
+        mActivity.initStoragePrefs(mPreferences);
+        mActivity.initSmartCapture(mPreferences);
+        mActivity.initTrueView(mPreferences);
+        if (mActivity.mSmartCapture && !forceStopSmartCapture) {
+            startSmartCapture();
+        } else {
+            stopSmartCapture();
+        }
+    }
+
+    private void startSmartCapture() {
+        if (!mSensorIsRegistered) {
+            mSensorIsRegistered = true;
+            mSensorManager = mActivity.getSensorManager();
+            mSensorManager.registerListener(this,
+                    mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY),
+                    SensorManager.SENSOR_DELAY_UI);
+        }
+    }
+
+    private void stopSmartCapture() {
+        if (mSensorManager != null && mSensorIsRegistered) {
+            mSensorIsRegistered = false;
+            mSensorManager.unregisterListener(this,
+                    mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY));
+            mSensorManager = null;
+        }
+    }
+
     private final class ShutterCallback
             implements android.hardware.Camera.ShutterCallback {
         @Override
@@ -1567,6 +1606,7 @@ public class PhotoModule
         // Remove the top level popup or dialog box and return true if there's any
         if (mPopup != null) {
             dismissPopup(true);
+            mActivity.recreateScreenNail();
             return true;
         }
         return false;
@@ -2356,6 +2396,25 @@ public class PhotoModule
         return false;
     }
 
+@Override
+    public void onSensorChanged(SensorEvent event) {
+        if (mActivity.mShowCameraAppView) {
+            int currentProx = (int) event.values[0];
+            if (currentProx == 0) {
+                if (mFirstTimeInitialized) {
+                    onShutterButtonFocus(true);
+                }
+                if (canTakePicture()) {
+                    onShutterButtonClick();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+    }
+
     @TargetApi(ApiHelper.VERSION_CODES.ICE_CREAM_SANDWICH)
     private void closeCamera() {
         if (mCameraDevice != null) {
@@ -2430,8 +2489,7 @@ public class PhotoModule
                 } else {
                     screenNail.setSize(size.height, size.width);
                 }
-                screenNail.enableAspectRatioClamping();
-                mActivity.notifyScreenNailChanged();
+                mActivity.initTrueView(mPreferences);
                 screenNail.acquireSurfaceTexture();
                 mSurfaceTexture = screenNail.getSurfaceTexture();
             }

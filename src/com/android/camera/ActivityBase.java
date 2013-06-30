@@ -25,6 +25,10 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.hardware.Camera.Parameters;
+import android.hardware.Sensor;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorEvent;
+import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -47,6 +51,8 @@ import com.android.gallery3d.app.PhotoPage;
 import com.android.gallery3d.common.ApiHelper;
 import com.android.gallery3d.ui.ScreenNail;
 import com.android.gallery3d.util.MediaSetUtils;
+
+import java.io.File;
 
 /**
  * Superclass of camera activity.
@@ -82,6 +88,10 @@ public abstract class ActivityBase extends AbstractGalleryActivity
 
     // Keep track of powershutter state
     public static boolean mPowerShutter = false;
+    public static boolean mSmartCapture = false;
+    public static boolean mStorageExternal;
+    public static boolean mNoExt = false;
+    public static boolean mStorageToggled = false;
 
     // multiple cameras support
     protected int mNumberOfCameras;
@@ -238,6 +248,40 @@ public abstract class ActivityBase extends AbstractGalleryActivity
         }
     }
 
+    protected void initSmartCapture(ComboPreferences prefs) {
+        prefs.setLocalId(getApplicationContext(), 0);
+        String val = prefs.getString(CameraSettings.KEY_SMART_CAPTURE,
+                getResources().getString(R.string.capital_off));
+        mSmartCapture = val.equals(CameraSettings.VALUE_ON);
+    }
+
+    protected void initTrueView(ComboPreferences prefs) {
+        prefs.setLocalId(getApplicationContext(), 0);
+        String val = prefs.getString(CameraSettings.KEY_TRUE_VIEW,
+                getResources().getString(R.string.capital_off));
+        CameraScreenNail.mEnableAspectRatioClamping = val.equals(CameraSettings.VALUE_OFF);
+    }
+
+    protected SensorManager getSensorManager() {
+        return (SensorManager) getApplicationContext().getSystemService(Context.SENSOR_SERVICE);
+    }
+
+    // Initialize storage preferences
+    protected void initStoragePrefs(ComboPreferences prefs) {
+        prefs.setLocalId(getApplicationContext(), 0);
+        String val = prefs.getString(CameraSettings.KEY_STORAGE,
+                getResources().getString(R.string.pref_camera_storage_title_default));
+        mStorageToggled = ( mStorageExternal == val.equals(CameraSettings.VALUE_ON)) ? false : true;
+        mStorageExternal = val.equals(CameraSettings.VALUE_ON);
+        File extDCIM = new File(Storage.EXTMMC);
+        // Condition for External SD absence
+        if(extDCIM.exists()) mNoExt = false;
+        else {
+            mNoExt=true;
+            mStorageExternal = false;
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -382,6 +426,11 @@ public abstract class ActivityBase extends AbstractGalleryActivity
     protected void gotoGallery() {
         // Move the next picture with capture animation. "1" means next.
         mAppBridge.switchWithCaptureAnimation(1);
+    }
+
+    protected void recreateScreenNail() {
+        ((CameraScreenNail) mCameraScreenNail).updateRenderSize();
+        notifyScreenNailChanged();
     }
 
     // Call this after setContentView.
