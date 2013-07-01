@@ -37,14 +37,6 @@ import java.io.FileOutputStream;
 public class Storage {
     private static final String TAG = "CameraStorage";
 
-public static final String DCIM = 
-    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString();
-
-// External SD DCIM (/storage/sdcard1 is android default external sd location)
-    public static final String EXTDCIM = "/storage/sdcard1/DCIM";
-    public static final String EXTMMC = "/storage/sdcard1";
-
-
     public static final long UNAVAILABLE = -1L;
     public static final long PREPARING = -2L;
     public static final long UNKNOWN_SIZE = -3L;
