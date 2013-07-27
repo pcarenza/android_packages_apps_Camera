@@ -217,7 +217,7 @@ public class Storage {
         return true;
     }
 
-    public void deleteImage(ContentResolver resolver, Uri uri) {
+    public static void deleteImage(ContentResolver resolver, Uri uri) {
         try {
             resolver.delete(uri, null, null);
         } catch (Throwable th) {
